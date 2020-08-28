@@ -21,27 +21,79 @@
  * SOFTWARE.
  */
 
-#ifndef __HAMSTER_THREAD_POOL_H__
-#define __HAMSTER_THREAD_POOL_H__
-
-#include <vector>
-#include <stack>
-#include <queue>
 #include <pthread.h>
+#include <errno.h>
 
 #include "Thread.h"
-namespace Hamster {
-class ThreadPool
-{
-public:
-    ThreadPool() = default;
-    ThreadPool(int num);
-private:
-    // 直接在vector上轮询即可，指针随时保存
-    std::vector<Thread> mThreads;
-    std::stack<int> mAvailableThreads;
-    std::queue<ITask> mTaskQueue;
-};
-} /* namespace Hamster */
 
-#endif /* __HAMSTER_THREAD_POOL_H__ */
+using namespace Hamster;
+
+
+
+Thread::Thread()
+{
+    mRunning = false;
+    mLoaded = false;
+    mIndex = -1;
+    mTask = nullptr;
+}
+
+int Thread::init(int index)
+{
+    pthread_attr_t attr;
+
+    if(index < 0) {
+        return -1;
+    }
+
+    mIndex = index;
+
+    pthread_mutex_init(&mLock, nullptr);
+    pthread_cond_init(&mCond, nullptr);
+    pthread_mutex_init(&mTaskLock, nullptr);
+    pthread_cond_init(&mTaskCond, nullptr);
+
+    pthread_attr_setscope(&attr, PTHREAD_SCOPE_PROCESS);
+    pthread_create(&mTid, &attr, __run, this);
+
+    pthread_attr_destroy(&attr);
+
+    return 0;
+}
+
+int Thread::release()
+{
+
+    return 0;
+}
+
+bool Thread::isRunning()
+{
+    //
+    return false;
+}
+
+void Thread::setRunningState(bool vaule)
+{
+
+}
+
+int Thread::loadTask(ITask* task)
+{
+    int ret = pthread_mutex_trylock(&mTaskLock);
+    if(0 == ret) {
+        mTask = task;
+
+        
+
+        pthread_mutex_unlock(&mTaskLock);
+        return 0;
+    }
+    
+    // EBUSY or EAGAIN or EINVAL
+    if(EINVAL == ret) {
+        printf("Thread::loadTask().error need initiate mutex first.\n");
+    }
+
+    return -1;
+}

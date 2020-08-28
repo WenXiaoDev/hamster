@@ -26,27 +26,66 @@
 
 #include <pthread.h>
 
-#include "Task.h"
+#include "ITask.h"
 
 namespace Hamster {
+
+void *__run(void *param)
+{
+    Thread *thiz = static_cast<Thread *>(param);
+    if(nullptr == thiz) {
+        printf("__run() invalid parameter.\n");
+        return NULL;
+    }
+
+    if(thiz->mIndex < 0) {
+        printf("__run() index = %d, need init first.\n", thiz->mIndex);
+        return NULL;
+    }
+
+    pthread_detach(thiz->mTid);
+
+    while(true) {
+        pthread_mutex_lock(&thiz->mTaskLock);
+        while(nullptr == thiz->mTask) {
+            pthread_cond_wait(&thiz->mTaskCond, &thiz->mTaskLock);
+        }
+
+        thiz->mTask->run();
+        thiz->mTask = nullptr;
+        pthread_mutex_unlock(&thiz->mTaskLock);
+        
+    }
+}
+
 class Thread
 {
 public:
+    friend void *__run(void *param);
     Thread() = default;
-    Thread(entry_t entry);
-    Thread(Task &task);
+    //Thread(entry_t entry);
 
-    int onFirstRef();
-    int init();
+    int init(int index);
     int release();
     
     bool isRunning();
-    
+    //bool isLoaded();
+    void setRunningState(bool value);
+    int loadTask(ITask *task);
 
     Thread(Thread &thread) = delete;
     Thread &operator=(Thread &other) = delete;
 private:
-    void *run(void *);
+    pthread_t mTid;
+    pthread_mutex_t mLock;
+    pthread_cond_t mCond;
+
+    pthread_mutex_t mTaskLock;
+    pthread_cond_t mTaskCond;
+    bool mRunning;
+    bool mLoaded;
+    int mIndex;
+    ITask *mTask;
 };
 } /* namespace Hamster */
 

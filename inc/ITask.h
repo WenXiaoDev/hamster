@@ -24,14 +24,64 @@
 #ifndef __HAMSTER_TASK_H__
 #define __HAMSTER_TASK_H__
 
-namespace Hamster {
-typedef void *(entry_t)(void *);
+#include <cstdio>
 
-class Task
+namespace Hamster {
+typedef void *(*entry_t)(void *);
+
+class ITask
 {
 public:
+    ITask();
+    virtual ~ITask();
+
+    virtual int reset() = 0;
+    virtual int run() = 0;
 private:
+
 };
+
+class Example : public ITask
+{
+public:
+    Example()
+    {
+        reset();
+    }
+
+    Example(int a1, float a2, bool a3) : arg1(a1), arg2(a2), arg3(a3) {}
+
+    int reset()
+    {
+        arg1 = 0;
+        arg2 = 0.0;
+        arg3 = false;
+    }
+
+    void setParameters(int a1, float a2, bool a3)
+    {
+        // may need mutex
+        arg1 = a1;
+        arg2 = a2;
+        arg3 = a3;
+    }
+
+    int run()
+    {
+        printf("arg1 = %d, arg2 = %f, arg3 = %s", arg1, arg2, arg3 ? "true": "false");
+
+        ret = 'c';
+
+        return 0;
+    }
+
+private:
+    int arg1;
+    float arg2;
+    bool arg3;
+    char ret;
+};
+
 } /* namespace Hamster */
 
 #endif /* __HAMSTER_TASK_H__ */
