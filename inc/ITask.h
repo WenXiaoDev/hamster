@@ -32,10 +32,10 @@ typedef void *(*entry_t)(void *);
 class ITask
 {
 public:
-    ITask();
-    virtual ~ITask();
+    ITask() {};
+    virtual ~ITask() {};
 
-    virtual int reset() = 0;
+    virtual void reset() = 0;
     virtual int run() = 0;
 private:
 
@@ -51,7 +51,7 @@ public:
 
     Example(int a1, float a2, bool a3) : arg1(a1), arg2(a2), arg3(a3) {}
 
-    int reset()
+    void reset()
     {
         arg1 = 0;
         arg2 = 0.0;

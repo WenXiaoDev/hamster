@@ -29,6 +29,39 @@
 #include "ITask.h"
 
 namespace Hamster {
+class Thread
+{
+public:
+    friend void *__run(void *param);
+    Thread() = default;
+    //Thread(entry_t entry);
+
+    int init(int index);
+    int release();
+    
+    bool isRunning();
+    bool exitPending();
+    void requestExit();
+    //bool isLoaded();
+    void setRunningState(bool value);
+    int loadTask(ITask *task);
+
+    Thread(Thread &thread) = delete;
+    Thread &operator=(Thread &other) = delete;
+private:
+    pthread_t mTid;
+    pthread_mutex_t mLock;
+    pthread_cond_t mCond;
+
+    pthread_mutex_t mTaskLock;
+    pthread_cond_t mTaskCond;
+
+    bool exitPending;
+    bool mRunning;
+    bool mLoaded;
+    int mIndex;
+    ITask *mTask;
+};
 
 void *__run(void *param)
 {
@@ -55,38 +88,10 @@ void *__run(void *param)
         thiz->mTask = nullptr;
         pthread_mutex_unlock(&thiz->mTaskLock);
         
+        pthread_mutex_lock(&thiz->mLock);
+        
     }
 }
-
-class Thread
-{
-public:
-    friend void *__run(void *param);
-    Thread() = default;
-    //Thread(entry_t entry);
-
-    int init(int index);
-    int release();
-    
-    bool isRunning();
-    //bool isLoaded();
-    void setRunningState(bool value);
-    int loadTask(ITask *task);
-
-    Thread(Thread &thread) = delete;
-    Thread &operator=(Thread &other) = delete;
-private:
-    pthread_t mTid;
-    pthread_mutex_t mLock;
-    pthread_cond_t mCond;
-
-    pthread_mutex_t mTaskLock;
-    pthread_cond_t mTaskCond;
-    bool mRunning;
-    bool mLoaded;
-    int mIndex;
-    ITask *mTask;
-};
 } /* namespace Hamster */
 
 #endif /* __HAMSTER_THREAD_H__ */

@@ -58,6 +58,8 @@ int Thread::init(int index)
 
     pthread_attr_destroy(&attr);
 
+    mRunning = true;
+
     return 0;
 }
 
@@ -83,10 +85,8 @@ int Thread::loadTask(ITask* task)
     int ret = pthread_mutex_trylock(&mTaskLock);
     if(0 == ret) {
         mTask = task;
-
-        
-
         pthread_mutex_unlock(&mTaskLock);
+        pthread_cond_signal(&mTaskCond);
         return 0;
     }
     
