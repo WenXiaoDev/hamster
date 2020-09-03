@@ -2,7 +2,7 @@
 #include <string>
 
 #include "ITask.h"
-//#include "Thread.h"
+#include "Thread.h"
 
 using namespace std;
 using namespace Hamster;
@@ -42,7 +42,7 @@ public:
         }
 
         ret = ans;
-
+        printf("the answer is %lf\n", ret);
         return 0;
     }
 
@@ -62,8 +62,12 @@ const char *DemoTask::name = "NewtonSqrtMethod";
 int main(int argc, char* argv[])
 {
     DemoTask demo(3, 30, 0);
-    demo.run();
-    printf("the answer is %.15lf\n", demo.getReturn());
+    //demo.run();
+    //printf("the answer is %.15lf\n", demo.getReturn());
 
+    Thread thread;
+    thread.init(1);
+    thread.loadTaskAndWait(&demo);
+    getchar();
     return 0;
 }

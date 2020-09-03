@@ -35,14 +35,13 @@ public:
     ~DummyTask() {}
 
     void reset() {}
-    int run() {}
+    int run() {return 0;}
 private:
 };
 
 Thread::Thread()
 {
     mTask = nullptr;
-    mTid = 0;
     mExitPending = false;
     mRunning = false;
     mLoaded = false;
@@ -103,7 +102,7 @@ bool Thread::exitPending()
 
 int Thread::requestExit()
 {
-    if(pthread_self() == mTid) {
+    if(pthread_equal(pthread_self(), mTid)) {
         return -1;
     }
 
@@ -159,7 +158,7 @@ int Thread::loadTask(ITask* task)
 
 int Thread::loadTaskAndWait(ITask* task)
 {
-    if(pthread_self() == mTid) {
+    if(pthread_equal(pthread_self(), mTid)) {
         return -1;
     }
 

@@ -33,7 +33,7 @@ class Thread
 {
 public:
     friend void *__run(void *param);
-    Thread() = default;
+    Thread();
     virtual ~Thread();
     //Thread(entry_t entry);
 
@@ -90,7 +90,7 @@ private:
     ITask *mTask;
 };
 
-void *__run(void *param)
+inline void *__run(void *param)
 {
     Thread *thiz = static_cast<Thread *>(param);
     if(nullptr == thiz) {
