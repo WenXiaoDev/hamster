@@ -34,6 +34,7 @@ class Thread
 public:
     friend void *__run(void *param);
     Thread() = default;
+    virtual ~Thread();
     //Thread(entry_t entry);
 
     int init(int index);
@@ -41,13 +42,39 @@ public:
     
     bool isRunning();
     bool exitPending();
-    void requestExit();
-    //bool isLoaded();
+    int requestExit();
+    int requestExitAndWait();
+
+    bool isLoaded();
     void setRunningState(bool value);
+
+    /**
+     * @brief   try to load a task
+     * @param   task a ITask object pointer
+     * @return  EBUSY on mutex busy, EAGAIN on system interrupt, with both you may try again
+     *          EINVAL on error: init failed
+     */
     int loadTask(ITask *task);
+    int loadTaskAndWait(ITask *task);
 
     Thread(Thread &thread) = delete;
     Thread &operator=(Thread &other) = delete;
+
+    class AutoLocker
+    {
+    public:
+        AutoLocker(pthread_mutex_t *m) : mutex(m)
+        {
+            pthread_mutex_lock(mutex);
+        }
+
+        ~AutoLocker()
+        {
+            pthread_mutex_unlock(mutex);
+        }
+    private:
+        pthread_mutex_t *mutex;
+    };
 private:
     pthread_t mTid;
     pthread_mutex_t mLock;
@@ -56,7 +83,7 @@ private:
     pthread_mutex_t mTaskLock;
     pthread_cond_t mTaskCond;
 
-    bool exitPending;
+    bool mExitPending;
     bool mRunning;
     bool mLoaded;
     int mIndex;
@@ -84,13 +111,22 @@ void *__run(void *param)
             pthread_cond_wait(&thiz->mTaskCond, &thiz->mTaskLock);
         }
 
+        // mTask would be assigned a dummy object when Thread was requested exit
+        if(thiz->exitPending()) {
+            pthread_mutex_unlock(&thiz->mTaskLock);
+            thiz->mTask = nullptr;
+            break;
+        }
+
         thiz->mTask->run();
         thiz->mTask = nullptr;
         pthread_mutex_unlock(&thiz->mTaskLock);
-        
-        pthread_mutex_lock(&thiz->mLock);
-        
     }
+
+    thiz->setRunningState(false);
+    pthread_cond_signal(&thiz->mCond);
+
+    return NULL;
 }
 } /* namespace Hamster */
 

@@ -28,14 +28,31 @@
 
 using namespace Hamster;
 
+class DummyTask : public ITask
+{
+public:
+    DummyTask() {}
+    ~DummyTask() {}
 
+    void reset() {}
+    int run() {}
+private:
+};
 
 Thread::Thread()
 {
+    mTask = nullptr;
+    mTid = 0;
+    mExitPending = false;
     mRunning = false;
     mLoaded = false;
     mIndex = -1;
     mTask = nullptr;
+}
+
+Thread::~Thread()
+{
+    release();
 }
 
 int Thread::init(int index)
@@ -65,19 +82,60 @@ int Thread::init(int index)
 
 int Thread::release()
 {
+    if(isRunning()) {
+        requestExitAndWait();
+    }
 
     return 0;
 }
 
 bool Thread::isRunning()
 {
-    //
-    return false;
+    AutoLocker autoLocker(&mLock);
+    return mRunning;
+}
+
+bool Thread::exitPending()
+{
+    AutoLocker autoLocker(&mLock);
+    return mExitPending;
+}
+
+int Thread::requestExit()
+{
+    if(pthread_self() == mTid) {
+        return -1;
+    }
+
+    DummyTask dummy;
+    // AutoLocker autoLocker(&mLock); This may block
+
+    pthread_mutex_lock(&mLock);
+    mExitPending = true;
+    pthread_mutex_unlock(&mLock);
+
+    return loadTaskAndWait(&dummy);
+}
+
+int Thread::requestExitAndWait()
+{
+    int ret = 0;
+    ret = requestExit();
+    if(-1 != ret) {
+        pthread_mutex_lock(&mLock);
+        while(mRunning) {
+            pthread_cond_wait(&mCond, &mLock);
+        }
+        pthread_mutex_unlock(&mLock);
+    }
+
+    return ret;
 }
 
 void Thread::setRunningState(bool vaule)
 {
-
+    AutoLocker autoLocker(&mLock);
+    mRunning = vaule;
 }
 
 int Thread::loadTask(ITask* task)
@@ -85,6 +143,7 @@ int Thread::loadTask(ITask* task)
     int ret = pthread_mutex_trylock(&mTaskLock);
     if(0 == ret) {
         mTask = task;
+        mLoaded = true;
         pthread_mutex_unlock(&mTaskLock);
         pthread_cond_signal(&mTaskCond);
         return 0;
@@ -95,5 +154,20 @@ int Thread::loadTask(ITask* task)
         printf("Thread::loadTask().error need initiate mutex first.\n");
     }
 
-    return -1;
+    return ret;
+}
+
+int Thread::loadTaskAndWait(ITask* task)
+{
+    if(pthread_self() == mTid) {
+        return -1;
+    }
+
+    pthread_mutex_lock(&mTaskLock);
+    mTask = task;
+    mLoaded = true;
+    pthread_mutex_unlock(&mTaskLock);
+    pthread_cond_signal(&mTaskCond);
+
+    return 0;
 }
