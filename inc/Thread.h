@@ -46,7 +46,6 @@ public:
     int requestExitAndWait();
 
     bool isLoaded();
-    void setRunningState(bool value);
 
     /**
      * @brief   try to load a task
@@ -76,6 +75,8 @@ public:
         pthread_mutex_t *mutex;
     };
 private:
+    void setRunningState(bool value);
+
     pthread_t mTid;
     pthread_mutex_t mLock;
     pthread_cond_t mCond;
@@ -107,18 +108,20 @@ inline void *__run(void *param)
 
     while(true) {
         pthread_mutex_lock(&thiz->mTaskLock);
-        while(nullptr == thiz->mTask) {
+        while(nullptr == thiz->mTask && !thiz->exitPending()) {
             pthread_cond_wait(&thiz->mTaskCond, &thiz->mTaskLock);
         }
 
         // mTask would be assigned a dummy object when Thread was requested exit
         if(thiz->exitPending()) {
-            pthread_mutex_unlock(&thiz->mTaskLock);
+            thiz->mLoaded = false;
             thiz->mTask = nullptr;
+            pthread_mutex_unlock(&thiz->mTaskLock);
             break;
         }
 
         thiz->mTask->run();
+        thiz->mLoaded = false;
         thiz->mTask = nullptr;
         pthread_mutex_unlock(&thiz->mTaskLock);
     }

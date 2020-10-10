@@ -30,18 +30,44 @@
 #include <pthread.h>
 
 #include "Thread.h"
+#include "ITask.h"
+
 namespace Hamster {
-class ThreadPool
+
+#define THREAD_POOL_SIZE_DEFAULT        20
+#define THREAD_POOL_TASK_NUM_DEFAULT    512
+#define SWITCH                          1
+
+class ThreadPoolTask : public ITask
 {
 public:
-    ThreadPool() = default;
-    ThreadPool(int num);
+    ThreadPoolTask();
+    virtual ~ThreadPoolTask();
+    int init();
+    virtual void reset();
+    bool setPoolThread(Thread *thread);
+    int release();
+    // won't release
+    virtual int run();
+
+    int postTask(ITask *task);
 private:
+    Thread *mPoolThread;
     // 直接在vector上轮询即可，指针随时保存
-    std::vector<Thread> mThreads;
-    std::stack<int> mAvailableThreads;
-    std::queue<ITask> mTaskQueue;
+    std::vector<Thread> *mThreads;
+    //std::stack<int> mAvailableThreads;
+    std::queue<ITask *> *mTaskQueue;
+    int mThreadPtr;
+    unsigned int mPoolSize;
+    unsigned int mMaxTaskNum;
 };
+
+ThreadPoolTask &getThreadPool()
+{
+    static ThreadPoolTask globalThreadPool;
+    return globalThreadPool;
+}
+
 } /* namespace Hamster */
 
 #endif /* __HAMSTER_THREAD_POOL_H__ */

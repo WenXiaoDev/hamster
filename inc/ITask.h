@@ -29,6 +29,7 @@
 namespace Hamster {
 typedef void *(*entry_t)(void *);
 
+
 class ITask
 {
 public:

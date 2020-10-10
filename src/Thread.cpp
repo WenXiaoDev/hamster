@@ -35,7 +35,10 @@ public:
     ~DummyTask() {}
 
     void reset() {}
-    int run() {return 0;}
+    int run() {
+        printf("Dummy Task is running, thread will exit.\n");
+        return 0;
+    }
 private:
 };
 
@@ -102,24 +105,23 @@ bool Thread::exitPending()
 
 int Thread::requestExit()
 {
+    printf("requestExit.enter\n");
     if(pthread_equal(pthread_self(), mTid)) {
         return -1;
     }
-
-    DummyTask dummy;
-    // AutoLocker autoLocker(&mLock); This may block
 
     pthread_mutex_lock(&mLock);
     mExitPending = true;
     pthread_mutex_unlock(&mLock);
 
-    return loadTaskAndWait(&dummy);
+    pthread_cond_signal(&mTaskCond);
+    return 0;
 }
 
 int Thread::requestExitAndWait()
 {
-    int ret = 0;
-    ret = requestExit();
+    printf("requestExitAndWait.enter\n");
+    int ret = requestExit();
     if(-1 != ret) {
         pthread_mutex_lock(&mLock);
         while(mRunning) {
@@ -129,6 +131,11 @@ int Thread::requestExitAndWait()
     }
 
     return ret;
+}
+
+bool Thread::isLoaded()
+{
+    return mLoaded;
 }
 
 void Thread::setRunningState(bool vaule)

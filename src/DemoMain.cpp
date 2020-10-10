@@ -1,6 +1,6 @@
 #include <cstdio>
 #include <string>
-
+#include <windows.h>
 #include "ITask.h"
 #include "Thread.h"
 
@@ -15,6 +15,7 @@ class DemoTask : public ITask
 public:
     static const char *name;
     DemoTask(float a1, int a2, float r) : arg1(a1), arg2(a2), ret(r) {}
+    DemoTask(float a1, int a2) : arg1(a1), arg2(a2), ret(0.0) {}
 
     ~DemoTask()
     {
@@ -62,12 +63,11 @@ const char *DemoTask::name = "NewtonSqrtMethod";
 int main(int argc, char* argv[])
 {
     DemoTask demo(3, 30, 0);
-    //demo.run();
-    //printf("the answer is %.15lf\n", demo.getReturn());
 
     Thread thread;
     thread.init(1);
-    thread.loadTaskAndWait(&demo);
-    getchar();
+    //thread.loadTaskAndWait(&demo);
+    thread.loadTask(&demo);
+    printf("%d\n", thread.requestExitAndWait());
     return 0;
 }
