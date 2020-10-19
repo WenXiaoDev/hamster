@@ -1,37 +1,62 @@
-/**
- * 仿Android序列化对象 
- */
-#include <cstdlib>
+/* brief: a simple data structure serializer for network transfering */
 
-#define __CPARCEL_DATA_SIZE__ 256
+#ifndef __CPARCEL_H__
+#define __CPARCEL_H__
+
+#define PARCEL_BASE 64
 
 typedef enum {
-    MSG_TYPE = 1,
-    GEN_TYPE,
-    LONG_TYPE,
-    TYPE_MAX,
+    PARCEL_ONE = PARCEL_BASE,
+    PARCEL_TWO = PARCEL_BASE << 1,
+    PARCEL_THREE = PARCEL_BASE << 2,
 } parcel_t;
 
 class Cparcel
 {
 public:
     Cparcel();
-    Cparcel(const parcel_t type);
-    Cparcel(Cparcel &other);
+    Cparcel(int t);
+    Cparcel(const Cparcel &other);
+    Cparcel(Cparcel &&other);
     ~Cparcel();
 
-    int serialize(const void *param, int size);
-    int deserialize(const void *buff, int size);
-    char *getData();
-    parcel_t getType();
+    Cparcel &operator=(const Cparcel &other);
+    Cparcel &operator==(const Cparcel &other) = delete;
+
+    int init();
+    int release();
+
     int getRestSpace();
-    void clean();
-    static const unsigned int BASE;
+    const char *getData() const;
+    void resize();
+    void clear();
+
+    
+    Cparcel &write(void *pos, int size);
+    // overload for basic built in type
+    template <typename T>
+    Cparcel &write(T t) {
+        T param = t;
+        int param_size = sizeof(t);
+        return write(&param, param_size);
+    }
+
+    int read(void *target, int size);
+    /*
+    int readInt();
+    long readLong();
+    float readFloat();
+    short readShort();
+    char readChar();*/
+
+    void dumpCparcel();
 private:
-    char *_data;
-    char *_readPtr;
-    char *_writePtr;
-    parcel_t _type;
+    void indexExpand();
+
+    char *mData;
+    int mReadPtr;
+    int mWritePtr;
+    int mSize;
 };
 
-const unsigned int Cparcel::BASE = 128;
+#endif /* __CPARCEL_H__ */
