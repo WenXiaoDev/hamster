@@ -40,12 +40,12 @@ public:
     int init(int index);
     int release();
     
+    bool isLoaded();
     bool isRunning();
     bool exitPending();
+    
     int requestExit();
     int requestExitAndWait();
-
-    bool isLoaded();
 
     /**
      * @brief   try to load a task
@@ -91,43 +91,43 @@ private:
     ITask *mTask;
 };
 
-inline void *__run(void *param)
+void *__run(void *param)
 {
-    Thread *thiz = static_cast<Thread *>(param);
-    if(nullptr == thiz) {
+    Thread *runContext = static_cast<Thread *>(param);
+    if(nullptr == runContext) {
         printf("__run() invalid parameter.\n");
         return NULL;
     }
 
-    if(thiz->mIndex < 0) {
-        printf("__run() index = %d, need init first.\n", thiz->mIndex);
+    if(runContext->mIndex < 0) {
+        printf("__run() index = %d, need init first.\n", runContext->mIndex);
         return NULL;
     }
 
-    pthread_detach(thiz->mTid);
+    pthread_detach(runContext->mTid);
 
     while(true) {
-        pthread_mutex_lock(&thiz->mTaskLock);
-        while(nullptr == thiz->mTask && !thiz->exitPending()) {
-            pthread_cond_wait(&thiz->mTaskCond, &thiz->mTaskLock);
+        pthread_mutex_lock(&runContext->mTaskLock);
+        while(nullptr == runContext->mTask && !runContext->exitPending()) {
+            pthread_cond_wait(&runContext->mTaskCond, &runContext->mTaskLock);
         }
 
         // mTask would be assigned a dummy object when Thread was requested exit
-        if(thiz->exitPending()) {
-            thiz->mLoaded = false;
-            thiz->mTask = nullptr;
-            pthread_mutex_unlock(&thiz->mTaskLock);
+        if(runContext->exitPending()) {
+            runContext->mLoaded = false;
+            runContext->mTask = nullptr;
+            pthread_mutex_unlock(&runContext->mTaskLock);
             break;
         }
 
-        thiz->mTask->run();
-        thiz->mLoaded = false;
-        thiz->mTask = nullptr;
-        pthread_mutex_unlock(&thiz->mTaskLock);
+        runContext->mTask->run();
+        runContext->mLoaded = false;
+        runContext->mTask = nullptr;
+        pthread_mutex_unlock(&runContext->mTaskLock);
     }
 
-    thiz->setRunningState(false);
-    pthread_cond_signal(&thiz->mCond);
+    runContext->setRunningState(false);
+    pthread_cond_signal(&runContext->mCond);
 
     return NULL;
 }
