@@ -29,6 +29,9 @@
 #include "ITask.h"
 
 namespace Hamster {
+
+
+
 class Thread
 {
 public:
@@ -74,6 +77,65 @@ public:
     private:
         pthread_mutex_t *mutex;
     };
+
+    // pre-announcement
+    class ConditionVariable;
+    class Locker
+    {
+    public:
+        friend class ConditionVariable;
+
+        Locker() {pthread_mutex_init(&mutex, nullptr);}
+        ~Locker() {}
+
+        void lock()
+        {
+
+        }
+        int trylock() {}
+
+        void unlock()
+        {
+            
+        }
+    private:
+        pthread_mutex_t mutex;
+    };
+
+    class ConditionVariable
+    {
+    public:
+        ConditionVariable() {pthread_cond_init(&cond, nullptr);}
+        ~ConditionVariable() {}
+        void wait(Locker &lock)
+        {
+            pthread_cond_wait(&cond, &lock.mutex);
+        }
+        void waitRelative(Locker &)
+        {
+
+        }
+    private:
+        pthread_cond_t cond;
+    };
+
+    class SyncUtil
+    {
+    public:
+        SyncUtil()
+        {
+
+        }
+
+        ~SyncUtil()
+        {
+
+        }
+    private:
+        pthread_mutex_t mutex;
+        pthread_cond_t cond;
+    };
+
 private:
     void setRunningState(bool value);
 
