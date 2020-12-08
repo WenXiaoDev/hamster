@@ -25,12 +25,10 @@
 #define __HAMSTER_THREAD_H__
 
 #include <pthread.h>
-
+#include <cstdint>
 #include "ITask.h"
 
 namespace Hamster {
-
-
 
 class Thread
 {
@@ -99,13 +97,16 @@ public:
 
         void lock()
         {
-            
+            pthread_mutex_lock(&mutex);
         }
-        int trylock() {}
+
+        int trylock()
+        {
+            return pthread_mutex_trylock(&mutex);
+        }
 
         int unlock()
         {
-            
             return pthread_mutex_unlock(&mutex);
         }
     private:
@@ -117,11 +118,18 @@ public:
     public:
         ConditionVariable() {pthread_cond_init(&cond, nullptr);}
         ~ConditionVariable() {}
+
         void wait(Locker &lock)
         {
             pthread_cond_wait(&cond, &lock.mutex);
         }
-        void waitRelative(Locker &)
+
+        void waitRelative(Locker &lock, int64_t duration)
+        {
+
+        }
+
+        void signal()
         {
 
         }
