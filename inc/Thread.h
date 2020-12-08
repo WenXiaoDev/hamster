@@ -85,18 +85,28 @@ public:
     public:
         friend class ConditionVariable;
 
-        Locker() {pthread_mutex_init(&mutex, nullptr);}
+        Locker()
+        {
+            pthread_mutexattr_t attr;
+
+            // with error check type for compatibility
+            pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+            pthread_mutex_init(&mutex, &attr);
+
+            pthread_mutexattr_destroy(&attr);
+        }
         ~Locker() {}
 
         void lock()
         {
-
+            
         }
         int trylock() {}
 
-        void unlock()
+        int unlock()
         {
             
+            return pthread_mutex_unlock(&mutex);
         }
     private:
         pthread_mutex_t mutex;
