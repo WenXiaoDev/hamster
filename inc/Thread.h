@@ -26,6 +26,8 @@
 
 #include <pthread.h>
 #include <cstdint>
+#include <sys/time.h>
+
 #include "ITask.h"
 
 namespace Hamster {
@@ -124,14 +126,21 @@ public:
             pthread_cond_wait(&cond, &lock.mutex);
         }
 
-        void waitRelative(Locker &lock, int64_t duration)
+        void waitRelative(Locker &lock, uint64_t time_ms)
         {
+            struct timespec tspec;
+            struct timeval now;
 
+            gettimeofday(&now, nullptr);
+            tspec.tv_sec = now.tv_sec + (now.tv_usec / 1000 + time_ms) % 1000;
+            tspec.tv_nsec = (now.tv_usec % 1000) * 1000 + (time_ms % 1000) * 1000000;
+
+            pthread_cond_timedwait(&cond, &lock.mutex, &tspec);
         }
 
         void signal()
         {
-
+            pthread_cond_signal(&cond);
         }
     private:
         pthread_cond_t cond;
