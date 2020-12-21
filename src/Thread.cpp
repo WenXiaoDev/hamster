@@ -50,6 +50,7 @@ Thread::Thread()
     mLoaded = false;
     mIndex = -1;
     mTask = nullptr;
+    mType = THREAD_TYPE_NONE;
 }
 
 Thread::~Thread()
@@ -57,14 +58,11 @@ Thread::~Thread()
     release();
 }
 
-int Thread::init(int index)
+int Thread::init(int index, thread_type_t type)
 {
     pthread_attr_t attr;
 
-    if(index < 0) {
-        return -1;
-    }
-
+    mType = type;
     mIndex = index;
 
     pthread_mutex_init(&mLock, nullptr);
@@ -84,11 +82,7 @@ int Thread::init(int index)
 
 int Thread::release()
 {
-    if(isRunning()) {
-        requestExitAndWait();
-    }
-
-    return 0;
+    return requestExitAndWait();
 }
 
 bool Thread::isRunning()
@@ -103,6 +97,7 @@ bool Thread::exitPending()
     return mExitPending;
 }
 
+// unused
 int Thread::requestExit()
 {
     printf("requestExit.enter\n");
@@ -120,21 +115,40 @@ int Thread::requestExit()
 
 int Thread::requestExitAndWait()
 {
-    printf("requestExitAndWait.enter\n");
-    int ret = requestExit();
-    if(-1 != ret) {
-        pthread_mutex_lock(&mLock);
-        while(mRunning) {
-            pthread_cond_wait(&mCond, &mLock);
-        }
-        pthread_mutex_unlock(&mLock);
+    // printf("requestExitAndWait.enter\n");
+    // int ret = requestExit();
+    // if(-1 != ret) {
+    //     pthread_mutex_lock(&mLock);
+    //     while(mRunning) {
+    //         pthread_cond_wait(&mCond, &mLock);
+    //     }
+    //     pthread_mutex_unlock(&mLock);
+    // }
+    if(pthread_equal(pthread_self(), mTid)) {
+        return -1;
     }
 
-    return ret;
+    pthread_mutex_lock(&mLock);
+
+    if(!mRunning) {
+        pthread_mutex_unlock(&mLock);
+        return 0;
+    }
+
+    mExitPending = true;
+    pthread_cond_signal(&mTaskCond);
+    while(mRunning) {
+        pthread_cond_wait(&mCond, &mLock);
+    }
+
+    pthread_mutex_unlock(&mLock);
+
+    return 0;
 }
 
 bool Thread::isLoaded()
 {
+    AutoLocker autoLocker(&mLock);
     return mLoaded;
 }
 
@@ -146,17 +160,14 @@ void Thread::setRunningState(bool vaule)
 
 int Thread::loadTask(ITask* task)
 {
+    // EBUSY or EAGAIN or EINVAL or 0
     int ret = pthread_mutex_trylock(&mTaskLock);
     if(0 == ret) {
         mTask = task;
         mLoaded = true;
         pthread_mutex_unlock(&mTaskLock);
         pthread_cond_signal(&mTaskCond);
-        return 0;
-    }
-    
-    // EBUSY or EAGAIN or EINVAL
-    if(EINVAL == ret) {
+    } else if(EINVAL == ret) {
         printf("Thread::loadTask().error need initiate mutex first.\n");
     }
 

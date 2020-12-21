@@ -32,6 +32,12 @@
 
 namespace Hamster {
 
+typedef enum {
+    THREAD_TYPE_QUEUE = 0,
+    THREAD_TYPE_WORK,
+    THREAD_TYPE_NONE,
+} thread_type_t;
+
 class Thread
 {
 public:
@@ -40,7 +46,7 @@ public:
     virtual ~Thread();
     //Thread(entry_t entry);
 
-    int init(int index);
+    int init(int index, thread_type_t type);
     int release();
     
     bool isLoaded();
@@ -74,16 +80,17 @@ public:
         {
             pthread_mutex_unlock(mutex);
         }
+
     private:
         pthread_mutex_t *mutex;
     };
 
     // pre-announcement
-    class ConditionVariable;
+    class Condition;
     class Locker
     {
     public:
-        friend class ConditionVariable;
+        friend class Condition;
 
         Locker()
         {
@@ -115,11 +122,11 @@ public:
         pthread_mutex_t mutex;
     };
 
-    class ConditionVariable
+    class Condition
     {
     public:
-        ConditionVariable() {pthread_cond_init(&cond, nullptr);}
-        ~ConditionVariable() {}
+        Condition() {pthread_cond_init(&cond, nullptr);}
+        ~Condition() {}
 
         void wait(Locker &lock)
         {
@@ -146,25 +153,25 @@ public:
         pthread_cond_t cond;
     };
 
-    class SyncUtil
+    class AutoLockerEnc
     {
     public:
-        SyncUtil()
+        AutoLockerEnc(Locker &m) : mutex(m)
         {
-
+            mutex.lock();
         }
 
-        ~SyncUtil()
+        ~AutoLockerEnc()
         {
-
+            mutex.unlock();
         }
     private:
-        pthread_mutex_t mutex;
-        pthread_cond_t cond;
+        Locker &mutex;
     };
 
 private:
     void setRunningState(bool value);
+
 
     pthread_t mTid;
     pthread_mutex_t mLock;
@@ -177,6 +184,7 @@ private:
     bool mRunning;
     bool mLoaded;
     int mIndex;
+    thread_type_t mType;
     ITask *mTask;
 };
 
@@ -185,24 +193,24 @@ void *__run(void *param)
     Thread *runContext = static_cast<Thread *>(param);
     if(nullptr == runContext) {
         printf("__run() invalid parameter.\n");
-        return NULL;
+        return nullptr;
     }
 
-    if(runContext->mIndex < 0) {
+    if(runContext->mIndex < 0 && runContext->mType != THREAD_TYPE_WORK) {
         printf("__run() index = %d, need init first.\n", runContext->mIndex);
-        return NULL;
+        return nullptr;
     }
 
     pthread_detach(runContext->mTid);
 
     while(true) {
         pthread_mutex_lock(&runContext->mTaskLock);
-        while(nullptr == runContext->mTask && !runContext->exitPending()) {
+        // while(nullptr == runContext->mTask && !runContext->exitPending()) {
+        while(nullptr == runContext->mTask && !runContext->mExitPending) {
             pthread_cond_wait(&runContext->mTaskCond, &runContext->mTaskLock);
         }
 
-        // mTask would be assigned a dummy object when Thread was requested exit
-        if(runContext->exitPending()) {
+        if(nullptr == runContext->mTask && runContext->mExitPending) {
             runContext->mLoaded = false;
             runContext->mTask = nullptr;
             pthread_mutex_unlock(&runContext->mTaskLock);
@@ -218,7 +226,7 @@ void *__run(void *param)
     runContext->setRunningState(false);
     pthread_cond_signal(&runContext->mCond);
 
-    return NULL;
+    return nullptr;
 }
 } /* namespace Hamster */
 
