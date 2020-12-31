@@ -25,10 +25,25 @@
 #define __HAMSTER_TASK_H__
 
 #include <cstdio>
+#include <pthread.h>
 
 namespace Hamster {
 typedef void *(*entry_t)(void *);
 
+class AutoBanner
+{
+public:
+    AutoBanner()
+    {
+        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, nullptr);
+    }
+
+    ~AutoBanner()
+    {
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, nullptr);
+        printf("AutoBanner exit\n");
+    }
+};
 
 class ITask
 {
@@ -38,6 +53,13 @@ public:
 
     virtual void reset() = 0;
     virtual int run() = 0;
+
+    int routine()
+    {
+        AutoBanner autoBanner;
+
+        return run();
+    }
 private:
 
 };
@@ -74,6 +96,11 @@ public:
         ret = 'c';
 
         return 0;
+    }
+
+    char getReturn()
+    {
+        return ret;
     }
 
 private:

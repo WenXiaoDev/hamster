@@ -41,7 +41,70 @@ typedef enum {
 class Thread
 {
 public:
-    friend void *__run(void *param);
+    static void *__run(void *param)
+    {
+        Thread *runContext = static_cast<Thread *>(param);
+        if(nullptr == runContext) {
+            printf("__run() invalid parameter.\n");
+            return nullptr;
+        }
+
+        if(runContext->mIndex < 0 && runContext->mType != THREAD_TYPE_WORK) {
+            printf("__run() index = %d, need init first.\n", runContext->mIndex);
+            return nullptr;
+        }
+
+        pthread_detach(runContext->mTid);
+
+        runContext->mRunning = true;
+
+        pthread_cleanup_push(cleaner, runContext);
+        
+        while(true) {
+            pthread_mutex_lock(&runContext->mTaskLock);
+            // while(nullptr == runContext->mTask && !runContext->exitPending()) {
+            while(nullptr == runContext->mTask) {
+                printf("Thread worker sleep\n");
+                pthread_cond_wait(&runContext->mTaskCond, &runContext->mTaskLock);
+            }
+
+            // EXIT PENDING CHECK IS NOT USED ANYMORE
+            // if(nullptr == runContext->mTask && runContext->mExitPending) {
+            //     runContext->mLoaded = false;
+            //     runContext->mTask = nullptr;
+            //     pthread_mutex_unlock(&runContext->mTaskLock);
+            //     break;
+            // }
+            printf("Thread worker wakeup\n");
+
+            runContext->mTask->routine();
+            runContext->mLoaded = false;
+            runContext->mTask = nullptr;
+            pthread_mutex_unlock(&runContext->mTaskLock);
+        }
+
+        pthread_cleanup_pop(0);
+
+        // runContext->setRunningState(false);
+        runContext->mRunning = false;
+        pthread_cond_signal(&runContext->mCond);
+
+        return nullptr;
+    }
+
+    static void cleaner(void *param)
+    {
+        Thread *runContext = static_cast<Thread *>(param);
+        if(nullptr == runContext) {
+            printf("cleaner() invalid parameter.\n");
+            return;
+        }
+
+        pthread_mutex_unlock(&runContext->mTaskLock);
+        runContext->mRunning = false;
+        pthread_cond_signal(&runContext->mCond);
+    }
+
     Thread();
     virtual ~Thread();
     //Thread(entry_t entry);
@@ -188,46 +251,6 @@ private:
     ITask *mTask;
 };
 
-void *__run(void *param)
-{
-    Thread *runContext = static_cast<Thread *>(param);
-    if(nullptr == runContext) {
-        printf("__run() invalid parameter.\n");
-        return nullptr;
-    }
-
-    if(runContext->mIndex < 0 && runContext->mType != THREAD_TYPE_WORK) {
-        printf("__run() index = %d, need init first.\n", runContext->mIndex);
-        return nullptr;
-    }
-
-    pthread_detach(runContext->mTid);
-
-    while(true) {
-        pthread_mutex_lock(&runContext->mTaskLock);
-        // while(nullptr == runContext->mTask && !runContext->exitPending()) {
-        while(nullptr == runContext->mTask && !runContext->mExitPending) {
-            pthread_cond_wait(&runContext->mTaskCond, &runContext->mTaskLock);
-        }
-
-        if(nullptr == runContext->mTask && runContext->mExitPending) {
-            runContext->mLoaded = false;
-            runContext->mTask = nullptr;
-            pthread_mutex_unlock(&runContext->mTaskLock);
-            break;
-        }
-
-        runContext->mTask->run();
-        runContext->mLoaded = false;
-        runContext->mTask = nullptr;
-        pthread_mutex_unlock(&runContext->mTaskLock);
-    }
-
-    runContext->setRunningState(false);
-    pthread_cond_signal(&runContext->mCond);
-
-    return nullptr;
-}
 } /* namespace Hamster */
 
 #endif /* __HAMSTER_THREAD_H__ */

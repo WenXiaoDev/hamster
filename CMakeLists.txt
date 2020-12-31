@@ -1,19 +1,21 @@
-# Hamster CMakeList.txt
 cmake_minimum_required(VERSION 3.5)
-project(hamster_demo)
 
-set(SOURCES
-    src/DemoMain.cpp
-    src/Thread.cpp
-    src/ThreadPool.cpp
+project(hamster)
+
+set(CMAKE_CXX_FLAGS "-g -std=c++11")
+
+include_directories(
+    ./inc
 )
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -g")
+set(SOURCE
+    ./src/DemoMain.cpp
+    ./src/Thread.cpp
+)
 
-add_executable(${PROJECT_NAME} ${SOURCE})
+add_executable(demoMain ${SOURCE})
 
-target_include_directories(
-    hamster_demo
-    PRIVATE
-        ${PROJECT_SOURCE_DIR}/inc
+target_link_libraries(
+    demoMain
+    pthread
 )

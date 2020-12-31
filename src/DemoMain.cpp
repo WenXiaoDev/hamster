@@ -1,6 +1,12 @@
 #include <cstdio>
 #include <string>
+
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 #include "ITask.h"
 #include "Thread.h"
 
@@ -63,11 +69,17 @@ const char *DemoTask::name = "NewtonSqrtMethod";
 int main(int argc, char* argv[])
 {
     DemoTask demo(3, 30, 0);
-
     Thread thread;
-    thread.init(1);
-    //thread.loadTaskAndWait(&demo);
-    thread.loadTask(&demo);
-    printf("%d\n", thread.requestExitAndWait());
+
+    thread.init(1, THREAD_TYPE_NONE);
+
+    for(int i = 0; i < 3; i++) {
+        // thread.loadTask(&demo);
+        thread.loadTaskAndWait(&demo);
+        // Sleep(500);
+        printf("\n");
+    }
+    
+    printf("Thread::requestExitAndWait().ret=%d\n", thread.requestExitAndWait());
     return 0;
 }

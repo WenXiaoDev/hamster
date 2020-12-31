@@ -28,20 +28,6 @@
 
 using namespace Hamster;
 
-class DummyTask : public ITask
-{
-public:
-    DummyTask() {}
-    ~DummyTask() {}
-
-    void reset() {}
-    int run() {
-        printf("Dummy Task is running, thread will exit.\n");
-        return 0;
-    }
-private:
-};
-
 Thread::Thread()
 {
     mTask = nullptr;
@@ -75,19 +61,21 @@ int Thread::init(int index, thread_type_t type)
 
     pthread_attr_destroy(&attr);
 
-    mRunning = true;
-
     return 0;
 }
 
 int Thread::release()
 {
-    return requestExitAndWait();
+    if (mRunning) {
+        return requestExitAndWait();
+    }
+
+    return 0;
 }
 
 bool Thread::isRunning()
 {
-    AutoLocker autoLocker(&mLock);
+    //AutoLocker autoLocker(&mLock);
     return mRunning;
 }
 
@@ -100,21 +88,29 @@ bool Thread::exitPending()
 // unused
 int Thread::requestExit()
 {
-    printf("requestExit.enter\n");
+    // printf("requestExit.enter\n");
+    // if(pthread_equal(pthread_self(), mTid)) {
+    //     return -1;
+    // }
+
+    // pthread_mutex_lock(&mLock);
+    // mExitPending = true;
+    // pthread_mutex_unlock(&mLock);
+
+    // pthread_cond_signal(&mTaskCond);
+
     if(pthread_equal(pthread_self(), mTid)) {
         return -1;
     }
 
-    pthread_mutex_lock(&mLock);
-    mExitPending = true;
-    pthread_mutex_unlock(&mLock);
+    pthread_cancel(mTid);
 
-    pthread_cond_signal(&mTaskCond);
     return 0;
 }
 
 int Thread::requestExitAndWait()
 {
+    printf("Thread::requestExitAndWait().enter\n");
     // printf("requestExitAndWait.enter\n");
     // int ret = requestExit();
     // if(-1 != ret) {
@@ -128,30 +124,45 @@ int Thread::requestExitAndWait()
         return -1;
     }
 
-    pthread_mutex_lock(&mLock);
+    // pthread_mutex_lock(&mLock);
+
+    // if(!mRunning) {
+    //     pthread_mutex_unlock(&mLock);
+    //     return 0;
+    // }
+
+    // mExitPending = true;
+    // pthread_cond_signal(&mTaskCond);
+    // while(mRunning) {
+    //     pthread_cond_wait(&mCond, &mLock);
+    // }
+
+    // pthread_mutex_unlock(&mLock);
 
     if(!mRunning) {
-        pthread_mutex_unlock(&mLock);
         return 0;
     }
 
-    mExitPending = true;
-    pthread_cond_signal(&mTaskCond);
+    pthread_cancel(mTid);
+    pthread_mutex_lock(&mLock);
     while(mRunning) {
         pthread_cond_wait(&mCond, &mLock);
     }
-
     pthread_mutex_unlock(&mLock);
+
+    printf("Thread::requestExitAndWait().exit\n");
 
     return 0;
 }
 
+// unused
 bool Thread::isLoaded()
 {
     AutoLocker autoLocker(&mLock);
     return mLoaded;
 }
 
+// unused
 void Thread::setRunningState(bool vaule)
 {
     AutoLocker autoLocker(&mLock);
@@ -174,6 +185,7 @@ int Thread::loadTask(ITask* task)
     return ret;
 }
 
+//unused
 int Thread::loadTaskAndWait(ITask* task)
 {
     if(pthread_equal(pthread_self(), mTid)) {
@@ -181,6 +193,7 @@ int Thread::loadTaskAndWait(ITask* task)
     }
 
     pthread_mutex_lock(&mTaskLock);
+    printf("loadTaskAndWait get locked\n");
     mTask = task;
     mLoaded = true;
     pthread_mutex_unlock(&mTaskLock);
