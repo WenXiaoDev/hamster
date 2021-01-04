@@ -20,28 +20,5 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "ThreadPool.h"
 
-namespace Hamster
-{
-
-// Usage: ThreadPool::getInstance().postTask()
-ThreadPool &ThreadPool::getInstance()
-{
-    static ThreadPool globalThreadPool;
-    return globalThreadPool;
-}
-
-int ThreadPool::postTask(ITask * task)
-{
-    int ret = 0;
-
-    if (nullptr == task) {
-        return -1;
-    }
-
-    pthread_mutex_lock(&mLock);
-    
-}
-
-}
+#include "util/syncUtils.h"

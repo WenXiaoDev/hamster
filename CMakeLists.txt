@@ -8,6 +8,10 @@ include_directories(
     ./inc
 )
 
+aux_source_directory(
+    
+)
+
 set(SOURCE
     ./src/DemoMain.cpp
     ./src/Thread.cpp

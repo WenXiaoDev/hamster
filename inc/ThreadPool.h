@@ -31,6 +31,7 @@
 
 #include "Thread.h"
 #include "ITask.h"
+#include "util/syncUtils.h"
 
 namespace Hamster {
 
@@ -38,35 +39,73 @@ namespace Hamster {
 #define THREAD_POOL_TASK_NUM_DEFAULT    512
 #define SWITCH                          1
 
-class ThreadPoolTask : public ITask
+class ThreadPool : public Thread
 {
 public:
-    ThreadPoolTask();
-    virtual ~ThreadPoolTask();
-    int init();
-    virtual void reset();
-    bool setPoolThread(Thread *thread);
-    int release();
-    // won't release
-    virtual int run();
+    /**
+     * @brief Meyers Singleton ThreadPool
+     * @return a reference of global ThreadPool object
+     */
+    static ThreadPool &getInstance();
 
-    int postTask(ITask *task);
+    /**
+     * @brief Blocking method, post a task to this threadpool
+     * @param task a ITask object
+     * @return 0 for succeed, a negative value for failure
+     */
+    int postTask(ITask * task);
+
+    /**
+     * @brief Clear all ITask objects, Would Block
+     * @param None
+     * @return 0 for succeed, a negative value for failure
+     */
+    int clearAll();
+
+    /**
+     * @brief Clear ITasks with given message
+     * @param msg The message of ITask object
+     * @return 0 for succeed, a negative value for failure
+     */
+    int clearIfExist(int msg);
+
+    /**
+     * @brief Current size of mTaskQueue
+     * @param None
+     * @return the number of ITasks in the task queue
+     */
+    int currentSize();
+
 private:
-    Thread *mPoolThread;
-    // 直接在vector上轮询即可，指针随时保存
-    std::vector<Thread> *mThreads;
-    //std::stack<int> mAvailableThreads;
-    std::queue<ITask *> *mTaskQueue;
-    int mThreadPtr;
-    unsigned int mPoolSize;
-    unsigned int mMaxTaskNum;
-};
+    ThreadPool();
+    ~ThreadPool();
 
-ThreadPoolTask &getThreadPool()
-{
-    static ThreadPoolTask globalThreadPool;
-    return globalThreadPool;
-}
+    /**
+     * @brief Called when initiate
+     * @param None
+     * @return 0 for succeed, a negative value for failure
+     */
+    int onFirstRef();
+
+    /**
+     * @brief Called when release
+     * @param None
+     * @return 0 for succeed, a negative value for failure
+     */
+    int onRelease();
+
+    /**
+     * @brief Fetch an ITask for a work thread from this ThreadPool
+     * @param None
+     * @return one ITask pointer in mTaskQueue for succeed, nullptr for failure
+     */
+    ITask *fetchTask();
+
+    std::vector<Thread> mThreads;
+    std::queue<ITask *> mTaskQueue;
+    pthread_mutex_t mLock;
+    pthread_cond_t mCond;
+};
 
 } /* namespace Hamster */
 
